@@ -1,5 +1,17 @@
 # TrustSoft Central Dashboard
 
+## نشر الموقع على Render
+
+[افتح نموذج النشر الرسمي على Render](https://render.com/deploy?repo=https%3A%2F%2Fgithub.com%2FMohammadzxzx1991%2FGuava%2Ftree%2Fcodex%2Ftrustsoft-deploy)
+
+المصدر مرفوع إلى الفرع codex/trustsoft-deploy، وملف render.yaml متحقق منه على GitHub.
+الرابط يفتح إعداد إنشاء الخدمة؛ ليس عنوان لوحة منشورة.
+راجع خطة starter والقرص الدائم المدفوعين، ثم اعتمد الإنشاء من حسابك.
+بعد وصول الخدمة إلى Live استخدم عنوانها الفعلي مع /control، ومفتاح الإدارة
+TRUSTSOFT_ADMIN_TOKEN من إعدادات الخدمة. لا ترسل المفتاح في المحادثة.
+مفتاح Render API لإدارة الاستضافة مختلف عن مفتاح الدخول إلى اللوحة.
+
+
 واجهة عربية RTL وخدمة قراءة محلية داخل مستودع Guava القائم.
 **لم يتحقق اتصال Jawafa_DB بعد، ولا توجد بيانات إنتاج أو نشر أونلاين مثبت.**
 راجع [تقرير التنفيذ](docs/VERIFICATION.md).
