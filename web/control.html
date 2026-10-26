@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>TrustSoft | مركز الاتصال والتعافي</title><meta name="theme-color" content="#10243b"><link rel="stylesheet" href="./style.css"><script src="./app.js" defer></script></head>
+<body data-start-section="control">
+<aside><div class="brand">T<span>TrustSoft</span></div><p>مركز الاتصال والتعافي</p><nav id="nav" aria-label="الأقسام"></nav><footer>Jawafa_DB<br>إدارة آمنة • دون تغيير بيانات الإنتاج</footer></aside>
+<main><div id="browser-message" class="browser-message" role="alert" hidden></div><noscript>يحتاج هذا الموقع إلى تفعيل JavaScript. افتحه من رابط HTTPS المنشور في Chrome.</noscript><header><div><small>TRUSTSOFT CONNECTION CONTROL</small><h1 id="title">نظرة عامة</h1><p>اتصال بالخادم وقاعدة البيانات ومراقبة التصدير من أي جهاز</p></div><span id="status" role="status">لم يُتحقق من الاتصال</span></header>
+<form id="login"><label for="token">مفتاح إدارة التشغيل</label><input type="password" id="token" autocomplete="current-password" autocapitalize="none" spellcheck="false" required minlength="32"><button id="login-submit">دخول</button><span id="login-error" role="alert"></span></form>
+<section id="workspace" hidden>
+<div id="alert" role="alert"></div>
+<div class="toolbar"><span id="updated">لم تُقرأ بيانات بعد</span><button id="refresh" type="button">تحديث الحالة</button><label><input id="auto" type="checkbox" checked> تحديث تلقائي كل 30 ثانية</label></div>
+<div id="cards" class="cards"></div>
+<section class="panel" id="control-panel" hidden>
+<h2>المراقبة والسيطرة</h2>
+<p>إدارة قناة الاتصال من أي جهاز. تُنفذ فحوص محددة داخل الخادم بواسطة وكيل مُثبت مسبقًا؛ لا تُغيّر بيانات TrustSoft.</p>
+<form id="admin-login"><label for="admin-token">مفتاح إدارة التشغيل</label><input id="admin-token" type="password" autocomplete="current-password" autocapitalize="none" spellcheck="false" minlength="32" required><button>فتح أدوات الإدارة</button></form>
+<p id="control-message" role="status">يلزم دخول الإدارة لمشاهدة قناة الخادم.</p>
+<div class="control-actions" id="control-actions"></div>
+<p>الوكيل يعيد المحاولة تلقائيًا. عند غيابه يُنتظر وصوله حتى انتهاء مهلة الطلب؛ الزر لا يستطيع تشغيل جهاز مطفأ أو إصلاح انقطاع الإنترنت المادي.</p>
+<h3>مراقبة تقدم التصدير</h3><div id="export-monitor"></div><h3>طلبات التشغيل ونتائجها</h3><div id="control-jobs"></div>
+<h3>النسخ الموجودة على مضيف اللوحة</h3><p>جرد ملفات فقط؛ لا تُعرض النسخة الاحتياطية كبيانات حية ولا يُفترض أنها قابلة للاستعادة.</p><div id="control-backups"></div>
+<h3>سجل الإدارة</h3><div id="control-audit"></div>
+</section>
+<section class="panel" id="data-panel"><h2 id="panel-title">حالة المصدر</h2><p id="scope"></p><div id="content"></div></section>
+<section class="panel"><h2>سجل مراقبة الاتصال</h2><div id="events"></div></section>
+<p class="notice">عودة قناة الإدارة لا تثبت نجاح SQL أو اكتمال التصدير. راجع نتيجة كل فحص ووقت آخر اتصال. الوكيل يستأنف العمل تلقائيًا بعد عودة الشبكة وتشغيل Windows.</p>
+</section></main></body></html>

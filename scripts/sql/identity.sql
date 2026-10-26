@@ -1,0 +1,1 @@
+SELECT @@SERVERNAME AS server_name, DB_NAME() AS database_name, ORIGINAL_LOGIN() AS login_name, SYSUTCDATETIME() AS server_utc

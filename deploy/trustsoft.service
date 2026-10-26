@@ -1,0 +1,29 @@
+[Unit]
+Description=TrustSoft connection control and read-only dashboard
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=trustsoft
+Group=trustsoft
+WorkingDirectory=/opt/trustsoft
+EnvironmentFile=/etc/trustsoft/dashboard.env
+Environment=TRUSTSOFT_SOURCE=agent
+Environment=TRUSTSOFT_CONTROL_DB=/var/lib/trustsoft/control.sqlite3
+Environment=TRUSTSOFT_SECURE_COOKIE=1
+Environment=PYTHONDONTWRITEBYTECODE=1
+ExecStart=/usr/bin/python3 -m trustsoft.server --host 127.0.0.1 --port 8080
+Restart=on-failure
+RestartSec=10
+StateDirectory=trustsoft
+StateDirectoryMode=0700
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/trustsoft
+
+[Install]
+WantedBy=multi-user.target

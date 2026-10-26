@@ -1,0 +1,29 @@
+# Prepared blueprint only. No resources have been created or billed.
+# Starter + persistent disk are paid resources; review Render pricing before deploying.
+services:
+  - type: web
+    name: trustsoft-central-dashboard
+    runtime: python
+    plan: starter
+    buildCommand: python -m compileall -q trustsoft
+    startCommand: python -m trustsoft.server --host 0.0.0.0 --port $PORT
+    healthCheckPath: /healthz
+    disk:
+      name: trustsoft-control-data
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.14
+      - key: TRUSTSOFT_SOURCE
+        value: agent
+      - key: TRUSTSOFT_CONTROL_DB
+        value: /var/data/control.sqlite3
+      - key: TRUSTSOFT_SECURE_COOKIE
+        value: "1"
+      - key: TRUSTSOFT_API_TOKEN
+        generateValue: true
+      - key: TRUSTSOFT_ADMIN_TOKEN
+        generateValue: true
+      - key: TRUSTSOFT_AGENT_TOKEN
+        generateValue: true

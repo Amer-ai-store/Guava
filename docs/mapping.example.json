@@ -1,0 +1,9 @@
+{
+  "sales": {
+    "schema": "dbo",
+    "object": "REPLACE_WITH_APPROVED_VIEW",
+    "columns": {"document_id": "REPLACE_ID", "date": "REPLACE_DATE", "amount": "REPLACE_AMOUNT"},
+    "order_by": ["REPLACE_DATE", "REPLACE_ID"],
+    "scope": "يُملأ بعد التحقق من الشركة والفرع والفترة والعملة والإلغاءات"
+  }
+}

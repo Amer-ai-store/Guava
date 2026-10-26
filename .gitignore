@@ -1,0 +1,16 @@
+__pycache__/
+.venv/
+.env
+local/
+*.log
+*.pfx
+*.p12
+*.key
+*.pem
+reports/
+.env.*
+dashboard.env
+admin-token.txt
+agent-token.txt
+docs/evidence/
+docs/deliverables/

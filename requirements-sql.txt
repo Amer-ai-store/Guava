@@ -1,0 +1,2 @@
+# Optional SQL adapter. Also requires Microsoft ODBC Driver 18 for SQL Server.
+pyodbc==5.2.0

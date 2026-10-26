@@ -1,0 +1,22 @@
+:root{font-family:Tahoma,Arial,sans-serif;color:#1d3048;background:#f3f6fa;line-height:1.7}*{box-sizing:border-box}body{margin:0;display:flex;min-height:100vh}aside{background:#10243b;color:#bacbdd;width:245px;padding:30px 20px;display:flex;flex-direction:column;position:fixed;top:0;bottom:0}.brand{color:#5cdbb4;font-size:30px;font-weight:bold;display:flex;gap:12px;align-items:center}.brand span{font-size:23px;color:white}aside p{font-size:12px}nav{display:grid;gap:5px;margin-top:20px;overflow:auto}button{font:inherit;cursor:pointer;border:1px solid #d3dee9;border-radius:8px;background:white;color:#24465f;padding:8px 15px}nav button{text-align:right;background:transparent;color:#c5d5e5;border:0}nav button[aria-current=true]{background:#21445c;color:#6ce4c4}footer{margin-top:auto;font-size:12px;padding-top:25px}main{margin-right:245px;width:calc(100% - 245px);padding:38px;max-width:1800px}header{display:flex;justify-content:space-between;align-items:center;gap:20px}small{letter-spacing:2px;color:#56838a;font-size:11px}h1{margin:8px 0;font-size:29px}header p{color:#65788d;margin:0}#status{background:#e4eaf0;border-radius:24px;padding:9px 15px;font-size:13px;white-space:nowrap}#status[data-ok=true]{background:#dcf4eb;color:#137355}form{margin-top:35px;padding:25px;background:white;border-radius:12px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}input[type=password]{padding:10px;border:1px solid #adbdcc;border-radius:6px;max-width:100%}#alert{background:#fff0d5;color:#805214;padding:16px;border-radius:8px;margin-top:24px}.toolbar{display:flex;gap:20px;align-items:center;flex-wrap:wrap;font-size:13px;margin:25px 0}.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:18px}.card,.panel{background:white;border:1px solid #dfe7f0;border-radius:12px;padding:22px}.card strong{display:block;font-size:27px;margin-top:10px}.card span{font-size:13px;color:#5f7285}.panel{margin-top:22px;overflow:auto}.panel h2{font-size:17px;margin:0}.panel p,.notice{color:#687a8d;font-size:13px}table{border-collapse:collapse;width:100%;font-size:13px;text-align:right}td,th{padding:12px;border-bottom:1px solid #e5ecf3;max-width:400px;overflow-wrap:anywhere}th{background:#f5f8fa}.empty{padding:35px;text-align:center;color:#697c8f}pre{white-space:pre-wrap;overflow-wrap:anywhere;direction:ltr;text-align:left;font-size:12px}button:focus-visible,input:focus-visible{outline:3px solid #238caa;outline-offset:3px}[hidden]{display:none!important}@media(max-width:950px){aside{width:190px}main{margin-right:190px;width:calc(100% - 190px);padding:20px}.cards{grid-template-columns:repeat(2,1fr)}header{align-items:start;flex-direction:column}}@media(max-width:600px){body{display:block}aside{position:static;width:100%;padding:16px}nav{display:flex;flex-wrap:wrap;margin:0}nav button{font-size:12px}footer,aside p{display:none}main{margin:0;width:100%;padding:16px}h1{font-size:24px}.cards{gap:8px}.card{padding:12px}}
+.control-actions{display:flex;gap:10px;flex-wrap:wrap;margin:20px 0}.control-actions button{background:#153f56;color:white}.control-actions button:disabled{background:#e1e6ed;color:#738393;cursor:wait}details{border-bottom:1px solid #e4ebf1;padding:12px 0}summary{cursor:pointer;font-size:13px}#control-panel h3{font-size:15px;margin-top:28px}#control-message{background:#edf4f8;padding:12px;border-radius:8px}
+/* Browser-first layout: readable fields and touch targets on Android. */
+main,header>div,.panel,.card{min-width:0}
+button,input{min-height:44px}
+input[type=password]{font-size:16px;min-width:0}
+button{touch-action:manipulation}
+.browser-message,noscript{display:block;background:#fff0d5;color:#805214;padding:16px;border-radius:8px;margin-bottom:20px}
+#login-error{flex-basis:100%;overflow-wrap:anywhere}
+#status{max-width:100%;white-space:normal}
+.table-scroll{overflow-x:auto;max-width:100%;overscroll-behavior-x:contain}
+@media(max-width:600px){
+ main{padding:16px;padding-bottom:max(16px,env(safe-area-inset-bottom))}
+ form{padding:16px;gap:12px;margin-top:24px;align-items:stretch}
+ form label,form input[type=password],form button{width:100%;flex-basis:100%}
+ .control-actions{display:grid;grid-template-columns:1fr}
+ .control-actions button{width:100%;text-align:center}
+ .panel{padding:16px}
+ .card strong{font-size:23px}
+ small{letter-spacing:1px;overflow-wrap:anywhere}
+ #status{font-size:12px}
+}
