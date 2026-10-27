@@ -14,6 +14,7 @@ FILES = (
     'scripts/probe-windows-sql.ps1', 'scripts/inspect-server.ps1', 'scripts/probe-backups.ps1',
     'scripts/sql/identity.sql', 'scripts/sql/permissions.sql',
     'scripts/sql/catalog.sql', 'scripts/sql/relations.sql', 'docs/UPLOADED-SQL-CHECK.md',
+    'docs/CONNECTION-RECOVERY.md',
 )
 
 

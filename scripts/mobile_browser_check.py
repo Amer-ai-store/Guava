@@ -72,7 +72,7 @@ def main():
                         expect(page.locator('#alert')).to_contain_text('تعذر تحديث')
                         context.set_offline(False)
                         page.evaluate("window.dispatchEvent(new Event('online'))")
-                        expect(page.locator('#status')).to_have_text('قناة الإدارة غير متصلة')
+                        expect(page.locator('#status')).to_have_text('بانتظار أول اتصال من الخادم')
                         report['cases'].append({'case':'network_resume','passed':True})
                     assert not errors,errors
                     report['cases'].append({'case':'mobile_browser_login_and_job','width':width,'height':height,

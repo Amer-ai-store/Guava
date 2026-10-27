@@ -30,7 +30,7 @@ function setup(dedicated=false,file=false){
   querySelectorAll:selector=>selector.startsWith('#control-actions')?get('control-actions').children:get('nav').children},
   fetch,AbortSignal,location:{protocol:file?'file:':'http:'},setTimeout:()=>1,clearTimeout:()=>{},console});
  vm.runInContext(fs.readFileSync('web/app.js','utf8'),context);
- return {get,calls,context,setFail:()=>{fail=true;}};
+ return {get,calls,context,state,setFail:()=>{fail=true;}};
 }
 const settle=()=>new Promise(resolve=>setImmediate(resolve));
 test('control panel works with unavailable SQL; admin action uses fixed JSON and CSRF header',async()=>{
@@ -70,6 +70,11 @@ test('dedicated control page uses admin login directly and exposes only operatio
  assert.ok(app.calls.some(call=>call.path==='/api/admin/login'));
  assert.ok(!app.calls.some(call=>call.path==='/api/login'));
  assert.equal(app.get('control-panel').hidden,false);
+ assert.match(app.get('status').textContent,/بانتظار أول اتصال/);
+ assert.match(app.get('alert').textContent,/إن كان مثبتًا/);
+ app.state.last_seen=1690000000;
+ await vm.runInContext('refreshControl()',app.context);
+ assert.equal(app.get('status').textContent,'قناة الإدارة غير متصلة');
 });
 
 test('downloaded HTML gives web hosting guidance and sends no API or credential requests',async()=>{

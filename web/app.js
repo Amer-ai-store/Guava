@@ -99,11 +99,15 @@ function renderControlState(state){
    for(const [label,value] of [['قناة الخادم',controlState.online?'متصلة':'غير متصلة'],['طلبات تنتظر',controlState.jobs.filter(j=>j.status==='queued').length],['فحوص جارية',controlState.jobs.filter(j=>j.status==='running').length],[controlState.backups.source==='agent_inventory'?'نسخ مرصودة من الوكيل':'نسخ على مضيف اللوحة',controlState.backups.files.length]]){
     const card=el('div','');card.className='card';card.append(el('span',label),el('strong',String(value)));$('cards').append(card);
    }
-   $('status').textContent=controlState.online?'قناة الإدارة متصلة':'قناة الإدارة غير متصلة';$('status').dataset.ok=String(controlState.online);
-   $('alert').hidden=controlState.online;$('alert').textContent='لا توجد قناة إدارة حية للخادم حاليًا. الطلبات لا تعني نجاح اتصال SQL. الوكيل سيعيد المحاولة عند عودة الشبكة.';
+   $('status').textContent=controlState.online?'قناة الإدارة متصلة':(controlState.last_seen?'قناة الإدارة غير متصلة':'بانتظار أول اتصال من الخادم');$('status').dataset.ok=String(controlState.online);
+   $('alert').hidden=controlState.online;$('alert').textContent=controlState.last_seen?
+    'لا توجد قناة إدارة حية للخادم حاليًا. الطلبات لا تعني نجاح اتصال SQL. الوكيل يعيد المحاولة أثناء تشغيله وتوفر الشبكة.':
+    'لم تسجل اللوحة أي اتصال من JAWAFFASVR حتى الآن. يلزم تشغيل الوكيل على الخادم أو فحص مهمته إن كان مثبتًا. تنفيذ طلب إعادة الاتصال يحتاج اتصال الوكيل باللوحة.';
   }
   $('control-message').textContent=!controlState.agent_configured?'قناة الوكيل غير مهيأة بعد. ثبّت الوكيل واضبط اعتماداته.':
-   (controlState.online?'الوكيل متصل؛ يمكن إرسال الفحوص.':'الوكيل غير متصل؛ الطلبات تنتظر حتى 120 ثانية، مع إعادة اتصال تلقائية من الوكيل.')+
+   (controlState.online?'الوكيل متصل؛ يمكن إرسال الفحوص.':(controlState.last_seen?
+    'الوكيل غير متصل؛ الطلبات تنتظر حتى 120 ثانية. يعيد الوكيل المحاولة أثناء تشغيله وتوفر الشبكة.':
+    'بانتظار أول اتصال من الوكيل؛ شغله على JAWAFFASVR أو افحص مهمته إن كان مثبتًا. الطلبات تنتهي بعد 120 ثانية إن لم يستلمها.'))+
    ' آخر اتصال: '+(controlState.last_seen?new Date(controlState.last_seen*1000).toLocaleString('ar'):'لم يحدث');
   const exportLabels={insufficient_evidence:'لا تكفي العينات للحكم',change_observed:'تغيرت أعداد الملفات أو أحجامها بين عينتين',unchanged_samples:'لم تتغير العينتان؛ هذا لا يثبت تعطل التصدير'};
   const progress=controlState.export_monitor||{state:'insufficient_evidence',samples:[]};
