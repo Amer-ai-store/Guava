@@ -8,7 +8,7 @@ from scripts import deploy_cloudflare as deploy
 class CloudflareDeploymentTests(unittest.TestCase):
     def test_free_config_and_credentials_are_private_and_stable(self):
         config=deploy.make_config('a'*32,'12345678-1234-1234-1234-123456789abc')
-        self.assertEqual(config['limits']['cpu_ms'],10)
+        self.assertNotIn('limits',config)
         self.assertTrue(config['keep_vars'])
         self.assertTrue(config['workers_dev'])
         self.assertNotIn('paid',json.dumps(config).lower())

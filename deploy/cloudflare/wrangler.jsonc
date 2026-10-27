@@ -4,13 +4,20 @@
   "main": "src/worker.mjs",
   "compatibility_date": "2026-10-26",
   "workers_dev": true,
-  "limits": {"cpu_ms": 10},
-  "observability": {"enabled": false},
-  "assets": {"directory": "../../web", "binding": "ASSETS", "run_worker_first": true},
-  "d1_databases": [{
-    "binding": "DB",
-    "database_name": "trustsoft-control",
-    "database_id": "00000000-0000-0000-0000-000000000000",
-    "migrations_dir": "migrations"
-  }]
+  "observability": {
+    "enabled": false
+  },
+  "assets": {
+    "directory": "../../web",
+    "binding": "ASSETS",
+    "run_worker_first": true
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "trustsoft-control",
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "migrations"
+    }
+  ]
 }

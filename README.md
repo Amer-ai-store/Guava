@@ -1,16 +1,20 @@
 # TrustSoft Central Dashboard
 
+**الموقع المنشور:** [https://trustsoft-control.zxzx-mohammad91.workers.dev/control](https://trustsoft-control.zxzx-mohammad91.workers.dev/control)
+
+تم التحقق من HTTPS والدخول وحفظ الطلبات في D1؛ الخادم وSQL ما يزالان غير متصلين.
+
 ## النشر المجاني الحقيقي
 
 المسار الحالي هو Cloudflare Workers + D1: واجهة ويب وAPI وتخزين دائم للطلبات،
 دون قرص Render مدفوع. [الإعداد والحدود والأدلة](docs/FREE-HOSTING.md).
 يلزم حساب Cloudflare مجاني وربط الحقل الآمن الموجود CLOUDFLARE_API_TOKEN.
-لم يُنشر موقع عام أو يُختبر اتصال SQL إنتاج حتى الآن.
+نُشر الموقع العام وتحقق الدخول؛ لم يُختبر اتصال SQL إنتاج حتى الآن.
 
 إعداد Render في deploy/render-paid.yaml بديل مدفوع محفوظ فقط؛ لا تستخدمه إذا أردت المسار المجاني.
 
 واجهة عربية RTL وخدمة قراءة محلية داخل مستودع Guava القائم.
-**لم يتحقق اتصال Jawafa_DB بعد، ولا توجد بيانات إنتاج أو نشر أونلاين مثبت.**
+**نشر الويب مثبت؛ اتصال Jawafa_DB وبيانات الإنتاج غير مثبتين بعد.**
 راجع [تقرير التنفيذ](docs/VERIFICATION.md).
 
 ## التشغيل

@@ -20,6 +20,7 @@ $handler = New-Object System.Net.Http.HttpClientHandler
 $handler.AllowAutoRedirect = $false
 $client = New-Object System.Net.Http.HttpClient($handler)
 $client.Timeout = [TimeSpan]::FromSeconds(12)
+$client.DefaultRequestHeaders.UserAgent.ParseAdd('TrustSoft-ReadOnly-Agent/1.0')
 $client.DefaultRequestHeaders.Authorization = New-Object System.Net.Http.Headers.AuthenticationHeaderValue('Bearer', $config.Token)
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 $brokerPath = Join-Path $data 'broker-id.txt'

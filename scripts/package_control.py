@@ -39,10 +39,14 @@ def main():
         assert set(package.namelist())==set(hashes)|{'MANIFEST-SHA256.json'}
         for name,digest in hashes.items():
             assert hashlib.sha256(package.read(name)).hexdigest()==digest
+    deployment=Path('local/cloudflare/deployment.json')
+    published=False
+    if deployment.exists():
+        published=json.loads(deployment.read_text()).get('public_web_verified') is True
     result={'package':out.name,'files':len(hashes)+1,'bytes':out.stat().st_size,
             'sha256':hashlib.sha256(out.read_bytes()).hexdigest(),
             'archive_integrity_passed':True,'pfx_or_private_keys_included':False,
-            'windows_execution_verified':False,'public_https_deployed':False}
+            'windows_execution_verified':False,'public_https_deployed':published}
     out.with_suffix('.sha256.txt').write_text(result['sha256']+'  '+out.name+'\n')
     # Keep package evidence outside its own archive to avoid a recursive digest.
     Path('docs/deliverables/control-package-verification.json').write_text(json.dumps(result,indent=2))

@@ -84,7 +84,7 @@ def make_config(account,database):
     result['d1_databases'][0]['database_id']=database
     result['d1_databases'][0]['migrations_dir']=str(PROJECT/'migrations')
     # No subscription, paid Workers plan, paid storage or custom DNS is requested.
-    assert result['limits']['cpu_ms']==10
+    assert 'limits' not in result  # Free plan enforces its own default CPU limit.
     assert result['workers_dev'] is True
     return result
 
@@ -186,7 +186,7 @@ def main():
     opener=urllib.request.build_opener(urllib.request.HTTPCookieProcessor(cookies))
     def fetch(path,body=None):
         data=json.dumps(body).encode() if body is not None else None
-        req=urllib.request.Request(url+path,data,headers={'Content-Type':'application/json'})
+        req=urllib.request.Request(url+path,data,headers={'Content-Type':'application/json','User-Agent':'TrustSoft-Control/1.0','Accept':'application/json'})
         with opener.open(req,timeout=30) as response:
             return response.status,response.read(),response.headers.get('Content-Type','')
     status,raw,_=fetch('/healthz')
