@@ -1,16 +1,13 @@
 # TrustSoft Central Dashboard
 
-## نشر الموقع على Render
+## النشر المجاني الحقيقي
 
-[افتح نموذج النشر الرسمي على Render](https://render.com/deploy?repo=https%3A%2F%2Fgithub.com%2FMohammadzxzx1991%2FGuava%2Ftree%2Fcodex%2Ftrustsoft-deploy)
+المسار الحالي هو Cloudflare Workers + D1: واجهة ويب وAPI وتخزين دائم للطلبات،
+دون قرص Render مدفوع. [الإعداد والحدود والأدلة](docs/FREE-HOSTING.md).
+يلزم حساب Cloudflare مجاني وربط الحقل الآمن الموجود CLOUDFLARE_API_TOKEN.
+لم يُنشر موقع عام أو يُختبر اتصال SQL إنتاج حتى الآن.
 
-المصدر مرفوع إلى الفرع codex/trustsoft-deploy، وملف render.yaml متحقق منه على GitHub.
-الرابط يفتح إعداد إنشاء الخدمة؛ ليس عنوان لوحة منشورة.
-راجع خطة starter والقرص الدائم المدفوعين، ثم اعتمد الإنشاء من حسابك.
-بعد وصول الخدمة إلى Live استخدم عنوانها الفعلي مع /control، ومفتاح الإدارة
-TRUSTSOFT_ADMIN_TOKEN من إعدادات الخدمة. لا ترسل المفتاح في المحادثة.
-مفتاح Render API لإدارة الاستضافة مختلف عن مفتاح الدخول إلى اللوحة.
-
+إعداد Render في deploy/render-paid.yaml بديل مدفوع محفوظ فقط؛ لا تستخدمه إذا أردت المسار المجاني.
 
 واجهة عربية RTL وخدمة قراءة محلية داخل مستودع Guava القائم.
 **لم يتحقق اتصال Jawafa_DB بعد، ولا توجد بيانات إنتاج أو نشر أونلاين مثبت.**
@@ -138,4 +135,4 @@ event_id, document_id, event_type (edit/unpost), user, device, timestamp, before
 لا تُفتح اللوحة من ZIP/HTML في التنزيلات؛ تحتاج رابط موقع منشور.
 أُصلحت مهل الطلبات لتعمل دون AbortSignal.timeout، وحُسنت شاشات الهاتف.
 راجع [طريقة الويب والنشر ونتائج اختبار Android](docs/ANDROID-WEB.md).
-ملف render.yaml إعداد نشر فقط، وليس رابط موقع أو إنشاء استضافة.
+ملف deploy/render-paid.yaml إعداد نشر فقط، وليس رابط موقع أو إنشاء استضافة.

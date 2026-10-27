@@ -2,7 +2,8 @@
 # Requires an authorized Windows identity with read-only database permissions.
 [CmdletBinding()]
 param(
-    [string]$Server = 'JAWAFFASVR'
+    [string]$Server = 'JAWAFFASVR',
+    [switch]$IdentityOnly
 )
 $ErrorActionPreference = 'Stop'
 $connection = $null
@@ -64,12 +65,17 @@ try {
     $actualHost = (($identity.server_name -split '\\')[0] -split '\.')[0]
     if ($actualHost -ne 'JAWAFFASVR') { throw 'wrong_server' }
     $stage = 'metadata'
-    $catalog = @(Read-Query 'catalog')
-    $relations = @(Read-Query 'relations')
+    $catalog = @()
+    $relations = @()
+    if (-not $IdentityOnly) {
+        $catalog = @(Read-Query 'catalog')
+        $relations = @(Read-Query 'relations')
+    }
     [ordered]@{
         state = 'verified_read'
         observedUtc = (Get-Date).ToUniversalTime().ToString('o')
         identity = $identity
+        metadataMode = if ($IdentityOnly) { 'identity_only' } else { 'discovered' }
         catalog = $catalog
         relations = $relations
         permissionScope = 'Additional DBA review of inherited and server-level permissions remains required.'

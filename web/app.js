@@ -31,18 +31,39 @@ function render(){if(!snapshot)return;
  $('status').textContent=ok?'متصل • استعلام ناجح':'غير متصل / بيانات غير حديثة';$('status').dataset.ok=String(ok);
  $('alert').hidden=ok;$('alert').textContent=(errors[s.error]||s.error||'بانتظار التحقق')+' — لا توجد بيانات حية مؤكدة. أي بيانات سابقة أدناه قديمة.';
  $('updated').textContent='آخر قراءة ناجحة: '+(s.last_success?new Date(s.last_success*1000).toLocaleString('ar'):'لم تحدث');
- $('cards').replaceChildren();for(const [label,value] of [['حالة القراءة',ok?'ناجحة':'غير مثبتة'],['الجداول والعروض المرئية',d?new Set(d.catalog.map(c=>c.schema_name+'.'+c.object_name)).size:'—'],['العلاقات المعلنة',d?d.relations.length:'—'],['إخفاقات متتالية',s.failures]]){const c=el('div','');c.className='card';c.append(el('span',label),el('strong',String(value)));$('cards').append(c);}
+ $('cards').replaceChildren();for(const [label,value] of [['حالة القراءة',ok?'ناجحة':'غير مثبتة'],['الجداول والعروض المرئية',d&&d.schema_state!=='not_discovered'?new Set(d.catalog.map(c=>c.schema_name+'.'+c.object_name)).size:'—'],['العلاقات المعلنة',d&&d.schema_state!=='not_discovered'?d.relations.length:'—'],['إخفاقات متتالية',s.failures]]){const c=el('div','');c.className='card';c.append(el('span',label),el('strong',String(value)));$('cards').append(c);}
  $('control-panel').hidden=selected!=='control';$('data-panel').hidden=selected==='control';if(selected==='control'){$('cards').hidden=!controlState;$('alert').hidden=true;$('status').textContent='قناة الإدارة • جارٍ التحقق';refreshControl();return renderEvents();}$('cards').hidden=false;
  $('panel-title').textContent=labels[selected];$('scope').textContent='';$('content').replaceChildren();
  if(!d){$('content').append(el('div','لم يتم جلب بيانات من TrustSoft. لا تُعرض بيانات تجريبية.'));return renderEvents();}
  if(selected==='overview'){$('content').append(table(Object.entries(d.sections).map(([k,v])=>({القسم:labels[k]||k,الحالة:v.state,صفوف_العينة:v.rows.length}))));}
- else if(selected==='schema'){$('scope').textContent='المخطط المرئي للحساب فقط؛ غياب علاقة معلنة لا يثبت غياب علاقة أعمال.';$('content').append(table(d.catalog),el('h3','العلاقات المعلنة'),table(d.relations));}
+ else if(selected==='schema'){$('scope').textContent=(d.schema_state==='sample'?'عينة محدودة من المخطط؛ ':d.schema_state==='not_discovered'?'لم يُكتشف المخطط بعد؛ ':'')+'المخطط المرئي للحساب فقط؛ غياب علاقة معلنة لا يثبت غياب علاقة أعمال.';$('content').append(table(d.catalog),el('h3','العلاقات المعلنة'),table(d.relations));}
  else if(selected==='investigation'){$('scope').textContent='نطاق عينة فقط. فحص السندات المفقودة غير منفذ حتى إثبات اكتمال التسلسل والإلغاءات.';$('content').append(table(d.investigation.findings));}
  else{const section=d.sections[selected];$('scope').textContent=section?.state==='sample'?'عينة بحد أقصى 200 صف • '+section.scope:'لم يُعتمد ربط هذا القسم بجداول TrustSoft بعد.';$('content').append(table(section?.rows));}
  renderEvents();
 }
 function renderEvents(){$('events').replaceChildren(table((snapshot.events||[]).slice().reverse().map(e=>({الحدث:e.type,الوقت:new Date(e.utc_epoch*1000).toISOString()}))));}
-async function refresh(){if(localFile||busy)return false;busy=true;clearTimeout(timer);$('refresh').disabled=true;try{const r=await apiRequest('/api/snapshot');if(r.status===401){$('login').hidden=false;$('workspace').hidden=true;return false;}if(!r.ok)throw Error();snapshot=await r.json();$('login').hidden=true;$('workspace').hidden=false;render();return true;}catch{if(snapshot){snapshot={...snapshot,state:'disconnected',stale:true,error:'dashboard_unreachable'};render();}$('status').textContent='انقطع الاتصال بخدمة اللوحة';$('status').dataset.ok='false';$('alert').hidden=false;$('alert').textContent='تعذر تحديث الحالة. البيانات المعروضة قديمة. ستعاد المحاولة تلقائيًا.';return false;}finally{busy=false;$('refresh').disabled=false;if($('auto').checked)timer=setTimeout(refresh,30000);}}
+async function refresh(){
+ if(localFile||busy)return false;busy=true;clearTimeout(timer);$('refresh').disabled=true;
+ try{
+  const r=await apiRequest(dedicatedControl?'/api/control/state':'/api/snapshot');
+  if(r.status===401||(dedicatedControl&&r.status===403)){$('login').hidden=false;$('workspace').hidden=true;return false;}
+  if(!r.ok)throw Error();
+  const data=await r.json();$('login').hidden=true;$('workspace').hidden=false;
+  if(dedicatedControl){
+   $('control-panel').hidden=false;$('data-panel').hidden=true;$('title').textContent=labels.control;
+   $('updated').textContent='آخر تحديث لحالة الإدارة: '+new Date().toLocaleString('ar');
+   renderControlState(data);
+   $('events').replaceChildren(table([{القناة:data.online?'متصلة':'غير متصلة',آخر_اتصال:data.last_seen?new Date(data.last_seen*1000).toISOString():'لم يحدث'}]));
+  }else{snapshot=data;render();}
+  return true;
+ }catch{
+  controlAvailable=false;controlButtons(false);
+  if(snapshot){snapshot={...snapshot,state:'disconnected',stale:true,error:'dashboard_unreachable'};render();}
+  $('status').textContent='انقطع الاتصال بخدمة اللوحة';$('status').dataset.ok='false';$('alert').hidden=false;
+  $('alert').textContent='تعذر تحديث الحالة. البيانات المعروضة قديمة. ستعاد المحاولة تلقائيًا.';return false;
+ }finally{busy=false;$('refresh').disabled=false;if($('auto').checked)timer=setTimeout(refresh,30000);}
+}
+
 $('login').onsubmit=async e=>{
  e.preventDefault();if(localFile)return;
  $('login-submit').disabled=true;
@@ -70,18 +91,12 @@ for(const [action,label] of Object.entries(actionLabels)){
  b.onclick=()=>submitAction(action);$('control-actions').append(b);
 }
 function controlButtons(enabled){document.querySelectorAll('#control-actions button').forEach(b=>b.disabled=!enabled);}
-async function refreshControl(){
- if(localFile)return;
- if(controlBusy)return;controlBusy=true;controlAvailable=false;
- try{
-  const r=await apiRequest('/api/control/state',{},12000);
-  if(r.status===401||r.status===403){$('cards').hidden=true;$('status').textContent='يلزم دخول الإدارة';$('status').dataset.ok='false';$('admin-login').hidden=false;controlButtons(false);$('control-message').textContent='سجل دخول الإدارة؛ مفتاح المشاهدة لا يمنح تنفيذ الأوامر.';return;}
-  if(!r.ok)throw Error();
-  controlState=await r.json();controlAvailable=true;$('admin-login').hidden=true;
+function renderControlState(state){
+  controlState=state;controlAvailable=true;$('admin-login').hidden=true;
   controlButtons(controlState.agent_configured);
   if(selected==='control'){
    $('cards').hidden=false;$('cards').replaceChildren();
-   for(const [label,value] of [['قناة الخادم',controlState.online?'متصلة':'غير متصلة'],['طلبات تنتظر',controlState.jobs.filter(j=>j.status==='queued').length],['فحوص جارية',controlState.jobs.filter(j=>j.status==='running').length],['نسخ على مضيف اللوحة',controlState.backups.files.length]]){
+   for(const [label,value] of [['قناة الخادم',controlState.online?'متصلة':'غير متصلة'],['طلبات تنتظر',controlState.jobs.filter(j=>j.status==='queued').length],['فحوص جارية',controlState.jobs.filter(j=>j.status==='running').length],[controlState.backups.source==='agent_inventory'?'نسخ مرصودة من الوكيل':'نسخ على مضيف اللوحة',controlState.backups.files.length]]){
     const card=el('div','');card.className='card';card.append(el('span',label),el('strong',String(value)));$('cards').append(card);
    }
    $('status').textContent=controlState.online?'قناة الإدارة متصلة':'قناة الإدارة غير متصلة';$('status').dataset.ok=String(controlState.online);
@@ -99,8 +114,18 @@ async function refreshControl(){
    block.append(el('pre',JSON.stringify(job.output||{state:job.status},null,2)));$('control-jobs').append(block);
   }
   if(!controlState.jobs.length)$('control-jobs').append(el('p','لا توجد طلبات تشغيل بعد.'));
-  $('control-backups').replaceChildren(el('p','حالة الجرد: '+controlState.backups.state),table(controlState.backups.files));
+  $('backups-title').textContent=controlState.backups.source==='agent_inventory'?'فهرس النسخ الوارد من الوكيل':'النسخ الموجودة على مضيف اللوحة';
+  $('control-backups').replaceChildren(el('p','حالة الجرد: '+controlState.backups.state+(controlState.backups.stale?' • آخر فهرس قديم أو لم يُتحقق بعد':'')),table(controlState.backups.files));
   $('control-audit').replaceChildren(table(controlState.audit.map(e=>({الوقت:new Date(e.at*1000).toISOString(),الحدث:e.event,الطلب:e.job_id}))));
+}
+async function refreshControl(){
+ if(localFile)return;
+ if(controlBusy)return;controlBusy=true;controlAvailable=false;
+ try{
+  const r=await apiRequest('/api/control/state',{},12000);
+  if(r.status===401||r.status===403){$('cards').hidden=true;$('status').textContent='يلزم دخول الإدارة';$('status').dataset.ok='false';$('admin-login').hidden=false;controlButtons(false);$('control-message').textContent='سجل دخول الإدارة؛ مفتاح المشاهدة لا يمنح تنفيذ الأوامر.';return;}
+  if(!r.ok)throw Error();
+  renderControlState(await r.json());return true;
  }catch{controlButtons(false);if(selected==='control'){$('status').textContent='قناة الإدارة غير متاحة';$('status').dataset.ok='false';}$('control-message').textContent='تعذر الوصول لقناة الإدارة. النتائج السابقة قديمة؛ ستعاد المحاولة مع تحديث اللوحة.';}
  finally{controlBusy=false;}
 }

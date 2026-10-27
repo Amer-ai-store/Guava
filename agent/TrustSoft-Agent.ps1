@@ -58,7 +58,7 @@ function Archive-File([string]$Path) {
         Move-Item -LiteralPath $Path -Destination (Join-Path $history $name)
     }
 }
-function Invoke-LocalProbe([string]$Kind) {
+function Invoke-LocalProbe([string]$Kind, [bool]$IdentityOnly = $false) {
     $script = switch ($Kind) { 'sql' {'probe-windows-sql.ps1'} 'backup' {'probe-backups.ps1'} default {'inspect-server.ps1'} }
     $path = Join-Path (Join-Path $PSScriptRoot 'scripts') $script
     $argument = switch ($Kind) {
@@ -66,6 +66,7 @@ function Invoke-LocalProbe([string]$Kind) {
         'backup' { '-Directory "' + $config.BackupDirectory + '"' }
         default { '-ExportPath "' + $config.ExportPath + '"' }
     }
+    if ($Kind -eq 'sql' -and $IdentityOnly) { $argument += ' -IdentityOnly' }
     $start = New-Object Diagnostics.ProcessStartInfo
     $start.FileName = "$PSHOME\powershell.exe"
     $start.Arguments = '-NoLogo -NoProfile -NonInteractive -File "' + $path + '" ' + $argument
@@ -91,10 +92,10 @@ function Invoke-LocalProbe([string]$Kind) {
         return [pscustomobject]@{ code=$process.ExitCode; result=$parsed }
     } finally { $process.Dispose() }
 }
-function Invoke-FixedAction([string]$Action) {
+function Invoke-FixedAction([string]$Action, [bool]$IdentityOnly = $false) {
     switch ($Action) {
         { $_ -in @('sql_probe','reconnect') } {
-            $probe = Invoke-LocalProbe 'sql'
+            $probe = Invoke-LocalProbe 'sql' $IdentityOnly
             return @{ execution_ok=($probe.code -eq 0); sql=$probe.result }
         }
         { $_ -in @('server_probe','export_probe') } {
@@ -113,7 +114,7 @@ if ((Test-Path -LiteralPath $runningPath) -and -not (Test-Path -LiteralPath $pen
     $running = Get-Content -LiteralPath $runningPath -Raw | ConvertFrom-Json
     Save-Json $pendingPath @{ id=$running.id; lease=$running.lease; output=@{execution_ok=$false;error='agent_interrupted_before_result'} }
 }
-$delay = 5
+$delay = 20
 try {
     while ($true) {
         $connected = $false
@@ -147,9 +148,27 @@ try {
                     $now = ([DateTimeOffset]::UtcNow).ToUnixTimeSeconds()
                     if ([double]$job.expires -le $now) { throw 'expired_job' }
                     Save-Json $runningPath @{id=$job.id;lease=$job.lease}
-                    try { $output = Invoke-FixedAction $job.action }
+                    try { $output = Invoke-FixedAction $job.action ($job.identity_only -eq $true) }
                     catch { $output = @{execution_ok=$false;error='local_probe_failed';exceptionType=$_.Exception.GetType().FullName} }
+                    # Keep full evidence locally; bound cloud traffic on the free tier.
+                    if ($output.sql -and ([Text.Encoding]::UTF8.GetByteCount(($output | ConvertTo-Json -Depth 24 -Compress)) -gt 192KB)) {
+                        Save-Json (Join-Path $history ([Guid]::NewGuid().ToString('N') + '-full-schema.json')) $output
+                        $output.sql | Add-Member -NotePropertyName catalogTotal -NotePropertyValue @($output.sql.catalog).Count -Force
+                        $output.sql | Add-Member -NotePropertyName relationTotal -NotePropertyValue @($output.sql.relations).Count -Force
+                        $output.sql.catalog = @($output.sql.catalog | Select-Object -First 100)
+                        $output.sql.relations = @($output.sql.relations | Select-Object -First 100)
+                        $output.sql.metadataMode = 'sample'
+                    }
                     Save-Json $pendingPath @{id=$job.id;lease=$job.lease;output=$output}
+                    # Send immediately, so slow probes do not consume their remaining lease while sleeping.
+                    $pending = Get-Content -LiteralPath $pendingPath -Raw | ConvertFrom-Json
+                    $receipt = Post-Agent $endpoint '/api/agent/result' $pending
+                    Save-Json (Join-Path $history ([Guid]::NewGuid().ToString('N') + '-receipt.json')) @{
+                        id=$pending.id; accepted=($receipt.accepted -eq $true); rejected=($receipt.rejected -eq $true)
+                        observedUtc=(Get-Date).ToUniversalTime().ToString('o')
+                    }
+                    Archive-File $pendingPath
+                    Archive-File $runningPath
                     # Delivery is attempted before the next job, even after a restart.
                 }
                 break
@@ -159,7 +178,7 @@ try {
                 continue
             }
         }
-        if ($connected) { $delay = 5 } else { $delay = [Math]::Min(300, $delay * 2) }
+        if ($connected) { $delay = 20 } else { $delay = [Math]::Min(300, $delay * 2) }
         Start-Sleep -Seconds ($delay + (Get-Random -Minimum 0 -Maximum 4))
     }
 } finally {

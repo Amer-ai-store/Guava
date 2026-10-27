@@ -14,3 +14,6 @@ admin-token.txt
 agent-token.txt
 docs/evidence/
 docs/deliverables/
+node_modules/
+.wrangler/
+.dev.vars*

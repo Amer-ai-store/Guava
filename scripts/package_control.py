@@ -5,13 +5,17 @@ from pathlib import Path
 from zipfile import ZipFile, ZIP_DEFLATED
 
 def main():
-    files=[Path(p) for p in ('README.md','START-REMOTE-CONTROL.txt','requirements-sql.txt','.gitignore','render.yaml')]
+    files=[Path(p) for p in ('README.md','START-REMOTE-CONTROL.txt','requirements-sql.txt','.gitignore','deploy/render-paid.yaml')]
     for directory,pattern in [('trustsoft','*.py'),('web','*'),('agent','*.ps1'),('deploy','*'),
                               ('scripts','*.py'),('scripts','*.ps1'),('scripts/sql','*.sql'),
                               ('tests','*.py'),('tests','*.cjs'),('docs','*.md'),
                               ('docs/evidence','*.json'),('docs/evidence','*.txt'),('docs/evidence','*.png')]:
-        files.extend(sorted(Path(directory).glob(pattern)))
+        files.extend(p for p in sorted(Path(directory).glob(pattern)) if p.is_file())
     files.append(Path('docs/mapping.example.json'))
+    files.extend(Path('deploy/cloudflare',p) for p in ('package.json','package-lock.json','wrangler.jsonc'))
+    files.extend(Path('deploy/cloudflare/src').glob('*.mjs'))
+    files.extend(Path('deploy/cloudflare/migrations').glob('*.sql'))
+    files.extend(Path('deploy/cloudflare/test').glob('*.mjs'))
     files=sorted(set(files))
     out=Path('docs/deliverables/TrustSoft-Control-and-Agent.zip')
     out.parent.mkdir(parents=True,exist_ok=True)
