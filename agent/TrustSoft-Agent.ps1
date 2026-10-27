@@ -6,6 +6,7 @@ Add-Type -AssemblyName System.Net.Http
 $config = Get-Content -LiteralPath $ConfigPath -Raw | ConvertFrom-Json
 if ($config.AgentId -ne 'JAWAFFASVR' -or $env:COMPUTERNAME -ne 'JAWAFFASVR') { throw 'wrong_agent_host' }
 if ($config.Server -notmatch '^[A-Za-z0-9_.\\,-]+$') { throw 'invalid_sql_server' }
+if ($config.SqlCredentialPath -and ($config.SqlCredentialPath.Contains('"') -or -not [IO.Path]::IsPathRooted($config.SqlCredentialPath))) { throw 'invalid_sql_credential_path' }
 $endpoints = @($config.Endpoints)
 if ($endpoints.Count -lt 1 -or $endpoints.Count -gt 2) { throw 'invalid_endpoint_count' }
 foreach ($endpoint in $endpoints) {
@@ -68,6 +69,10 @@ function Invoke-LocalProbe([string]$Kind, [bool]$IdentityOnly = $false) {
         default { '-ExportPath "' + $config.ExportPath + '"' }
     }
     if ($Kind -eq 'sql' -and $IdentityOnly) { $argument += ' -IdentityOnly' }
+    if ($Kind -eq 'sql' -and $config.SqlCredentialPath) {
+        $argument += ' -SqlCredentialPath "' + $config.SqlCredentialPath + '"'
+        if ($config.AllowSaReadOnlyQueries -eq $true) { $argument += ' -AllowSaReadOnlyQueries' }
+    }
     $start = New-Object Diagnostics.ProcessStartInfo
     $start.FileName = "$PSHOME\powershell.exe"
     $start.Arguments = '-NoLogo -NoProfile -NonInteractive -File "' + $path + '" ' + $argument

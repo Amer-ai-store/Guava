@@ -5,10 +5,12 @@ from pathlib import Path
 from zipfile import ZipFile, ZIP_DEFLATED
 
 def main():
-    files=[Path(p) for p in ('README.md','START-REMOTE-CONTROL.txt','requirements-sql.txt','.gitignore','deploy/render-paid.yaml')]
+    files=[Path(p) for p in ('README.md','START-REMOTE-CONTROL.txt','requirements-sql.txt','.gitignore','deploy/render-paid.yaml',
+                            'Run-UploadedSqlCheck.ps1','Run-UploadedSqlCheck.cmd',
+                            'Install-LiveTrustSoftAgent.ps1','Install-LiveTrustSoftAgent.cmd')]
     for directory,pattern in [('trustsoft','*.py'),('web','*'),('agent','*.ps1'),('deploy','*'),
                               ('scripts','*.py'),('scripts','*.ps1'),('scripts/sql','*.sql'),
-                              ('tests','*.py'),('tests','*.cjs'),('docs','*.md'),
+                              ('tests','*.py'),('tests','*.cjs'),('tests','*.ps1'),('docs','*.md'),
                               ('docs/evidence','*.json'),('docs/evidence','*.txt'),('docs/evidence','*.png')]:
         files.extend(p for p in sorted(Path(directory).glob(pattern)) if p.is_file())
     files.append(Path('docs/mapping.example.json'))

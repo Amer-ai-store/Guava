@@ -20,7 +20,8 @@ def main():
         results.append({'command':command,'exit_code':result.returncode,'evidence':name})
     report={'observed_utc':datetime.datetime.now(datetime.timezone.utc).isoformat(),
             'checks':results,'all_local_checks_passed':all(r['exit_code']==0 for r in results),
-            'windows_agent_executed':False,'production_sql_connected':False,'public_https_deployed':False}
+            'windows_agent_executed':False,'production_sql_connected':False,
+            'public_https_checked_by_this_run':False}
     (directory/'verification-summary.json').write_text(json.dumps(report,indent=2))
     print(json.dumps(report,indent=2))
     return 0 if report['all_local_checks_passed'] else 1

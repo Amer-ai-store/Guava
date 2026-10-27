@@ -17,3 +17,8 @@ docs/deliverables/
 node_modules/
 .wrangler/
 .dev.vars*
+*SQLPassword*
+DBPrefernces*.txt
+DBPreferences*.txt
+AGENT-KEY-PRIVATE.txt
+*.dpapi

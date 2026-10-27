@@ -1,20 +1,24 @@
-# Windows PowerShell 5.1; no password, no export, no changes to SQL or scheduled tasks.
-# Requires an authorized Windows identity with read-only database permissions.
+# Windows PowerShell 5.1; fixed SELECTs only, no exports or SQL/task changes.
+# Integrated auth by default; explicit sa mode requires a local DPAPI credential.
 [CmdletBinding()]
 param(
     [string]$Server = 'JAWAFFASVR',
-    [switch]$IdentityOnly
+    [switch]$IdentityOnly,
+    [string]$SqlCredentialPath,
+    [switch]$AllowSaReadOnlyQueries
 )
 $ErrorActionPreference = 'Stop'
 $connection = $null
+$storedCredential = $null
 $stage = 'initialization'
 $exitCode = 1
 try {
     Add-Type -AssemblyName System.Data
+    . (Join-Path $PSScriptRoot 'Protect-TrustSoftSqlCredential.ps1')
     $builder = New-Object System.Data.SqlClient.SqlConnectionStringBuilder
     $builder.DataSource = $Server
     $builder.InitialCatalog = 'Jawafa_DB'
-    $builder.IntegratedSecurity = $true
+    $builder.IntegratedSecurity = -not [bool]$SqlCredentialPath
     $builder.Encrypt = $true
     $builder.TrustServerCertificate = $false
     $builder.ConnectTimeout = 5
@@ -22,8 +26,18 @@ try {
     $builder.ApplicationName = 'TrustSoft ReadOnly Probe'
     # ReadOnly is a routing hint, NOT a security boundary; permission checks follow.
     $builder['ApplicationIntent'] = 'ReadOnly'
-    $connection = New-Object System.Data.SqlClient.SqlConnection($builder.ConnectionString)
-    $stage = 'tls_and_windows_auth'
+    if ($SqlCredentialPath) {
+        $stage = 'local_dpapi_credential'
+        $storedCredential = Read-TrustSoftProtectedSqlCredential -Path $SqlCredentialPath
+        if ($AllowSaReadOnlyQueries -and $storedCredential.UserName -ine 'sa') { throw 'explicit_sa_login_required' }
+        $sqlCredential = New-Object System.Data.SqlClient.SqlCredential($storedCredential.UserName,$storedCredential.Password)
+        $connection = New-Object System.Data.SqlClient.SqlConnection($builder.ConnectionString,$sqlCredential)
+        $stage = 'tls_and_sql_auth'
+    } else {
+        if ($AllowSaReadOnlyQueries) { throw 'explicit_sa_login_required' }
+        $connection = New-Object System.Data.SqlClient.SqlConnection($builder.ConnectionString)
+        $stage = 'tls_and_windows_auth'
+    }
     $connection.Open()
 
     function Read-Query([string]$Name, [int]$Limit = 20000) {
@@ -54,9 +68,8 @@ try {
 
     $stage = 'read_only_permission_check'
     $permissions = @(Read-Query 'permissions')
-    if ($permissions.Count -gt 0) {
-        throw 'read_only_principal_required'
-    }
+    $sqlUser = if ($storedCredential) { $storedCredential.UserName } else { '' }
+    $policy = Resolve-TrustSoftSqlReadPolicy -BroadPermissions ($permissions.Count -gt 0) -SqlUserName $sqlUser -AllowSaReadOnlyQueries ([bool]$AllowSaReadOnlyQueries)
     $stage = 'identity'
     $identityRows = @(Read-Query 'identity')
     if ($identityRows.Count -ne 1) { throw 'identity_not_verified' }
@@ -78,7 +91,10 @@ try {
         metadataMode = if ($IdentityOnly) { 'identity_only' } else { 'discovered' }
         catalog = $catalog
         relations = $relations
-        permissionScope = 'Additional DBA review of inherited and server-level permissions remains required.'
+        authentication = if ($SqlCredentialPath) { 'sql' } else { 'windows' }
+        accountReadOnlyEnforced = $policy.accountReadOnlyEnforced
+        queryPolicy = $policy.queryPolicy
+        permissionScope = 'Fixed SELECTs only. Explicit sa mode does not make the SQL account read-only. DBA review remains required.'
         businessSamplesVerified = $false
         originalDataChanged = $false
     } | ConvertTo-Json -Depth 8
@@ -86,7 +102,7 @@ try {
 } catch {
     # Do not print connection strings, raw driver messages, or credentials.
     $reason = 'connection_or_query_failed'
-    $allowed = @('read_only_principal_required','wrong_database','wrong_server','identity_not_verified','metadata_limit_exceeded')
+    $allowed = @('read_only_principal_required','wrong_database','wrong_server','identity_not_verified','metadata_limit_exceeded','explicit_sa_login_required','invalid_sql_credential_file','windows_dpapi_required')
     if ($allowed -contains $_.Exception.Message) { $reason = $_.Exception.Message }
     $sqlErrors = @()
     $cause = $_.Exception
@@ -109,5 +125,6 @@ try {
     } | ConvertTo-Json -Depth 4
 } finally {
     if ($null -ne $connection) { $connection.Dispose() }
+    if ($null -ne $storedCredential) { $storedCredential.Password.Dispose() }
 }
 exit $exitCode
