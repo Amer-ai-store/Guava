@@ -9,7 +9,7 @@ class Element{
  setAttribute(k,v){this[k]=v;}
  set innerHTML(_){throw Error('Unsafe HTML assignment');}
 }
-function setup(dedicated=false,file=false){
+function setup(dedicated=false,file=false,portal=false){
  const elements=new Map();
  const get=id=>{if(!elements.has(id))elements.set(id,new Element());return elements.get(id);};
  const calls=[];
@@ -17,8 +17,9 @@ function setup(dedicated=false,file=false){
  const state={agent_configured:true,online:false,last_seen:null,jobs:[],backups:{state:'not_configured',files:[]},audit:[]};
  const fetch=async(path,options={})=>{
   calls.push({path,options});
+  if(portal)path=new URL(path).pathname;
   if(path==='/api/snapshot')return {status:200,ok:true,json:async()=>({state:'disconnected',data:null,error:'sql_not_configured',failures:1,events:[]})};
-  if(path==='/api/admin/login'){admin=true;return {status:200,ok:true,json:async()=>({ok:true})};}
+  if(path==='/api/admin/login'){admin=true;return {status:200,ok:true,json:async()=>({ok:true,...(portal?{session:'synthetic-session-abcdefghijklmnopqrstuvwxyz.abcdef',expires_in:900}:{})})};}
   if(path==='/api/control/state'){
    if(fail)throw Error('test link outage');
    return {status:admin?200:403,ok:admin,json:async()=>state};
@@ -26,9 +27,9 @@ function setup(dedicated=false,file=false){
   if(path==='/api/control/jobs')return {status:202,ok:true,json:async()=>({id:'test-job'})};
   throw Error('Unexpected route '+path);
  };
- const context=vm.createContext({document:{body:{dataset:{startSection:dedicated?'control':''}},getElementById:get,createElement:tag=>new Element(tag),
+ const context=vm.createContext({document:{body:{dataset:{startSection:dedicated?'control':'',...(portal?{apiOrigin:'https://trustsoft-control.zxzx-mohammad91.workers.dev'}:{})}},getElementById:get,createElement:tag=>new Element(tag),
   querySelectorAll:selector=>selector.startsWith('#control-actions')?get('control-actions').children:get('nav').children},
-  fetch,AbortSignal,location:{protocol:file?'file:':'http:'},setTimeout:()=>1,clearTimeout:()=>{},console});
+  fetch,AbortSignal,location:{protocol:file?'file:':'http:',origin:portal?'https://amer-ai-store.github.io':'http://localhost'},setTimeout:()=>1,clearTimeout:()=>{},console});
  vm.runInContext(fs.readFileSync('web/app.js','utf8'),context);
  return {get,calls,context,state,setFail:()=>{fail=true;}};
 }
@@ -83,4 +84,23 @@ test('downloaded HTML gives web hosting guidance and sends no API or credential 
  assert.match(app.get('browser-message').textContent,/HTTPS/);
  assert.equal(app.get('login-submit').disabled,true);
  assert.equal(app.calls.length,0);
+});
+test('central portal uses memory session with cookie-free fixed API and clears it on exit',async()=>{
+ const app=setup(true,false,true);await settle();
+ app.get('token').value='synthetic-admin-key-abcdefghijklmnopqrstuvwxyz';
+ await app.get('login').onsubmit({preventDefault(){}});
+ const call=app.calls.find(c=>c.options.headers?.Authorization);
+ assert.ok(call);
+ assert.match(call.path,/^https:\/\/trustsoft-control\.zxzx-mohammad91\.workers\.dev\/api\//);
+ assert.equal(call.options.credentials,'omit');
+ assert.match(call.options.headers.Authorization,/^Bearer synthetic-session-/);
+ assert.equal(call.options.headers['X-TrustSoft-Client'],'central');
+ assert.equal(app.get('token').value,'');
+ app.get('portal-exit').onclick();
+ assert.equal(app.get('workspace').hidden,true);
+ assert.equal(app.get('auto').checked,false);
+ const count=app.calls.length;
+ await vm.runInContext("apiRequest('/api/control/state')",app.context);
+ assert.equal(app.calls[count].options.headers.Authorization,undefined);
+ assert.equal(app.get('control-jobs').children.length,0);
 });

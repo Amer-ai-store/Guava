@@ -3,6 +3,13 @@
 const ACTIONS=['server_probe','sql_probe','export_probe','backup_probe','reconnect'];
 const SECTIONS=['sales','purchases','accounting','checks','inventory','users','operations','financial','vouchers','payments','audit'];
 const MAX_BODY=512*1024, encoder=new TextEncoder();
+const CENTRAL_ORIGIN='https://amer-ai-store.github.io',CENTRAL_CLIENT='central',CENTRAL_TTL=900;
+const CENTRAL_SESSION_PREFIX='TrustSoft central browser session v1\n';
+const CENTRAL_ROUTES=new Map([
+ ['/api/login','POST'],['/api/admin/login','POST'],['/api/control/state','GET'],
+ ['/api/control/jobs','POST'],['/api/snapshot','GET'],['/api/health','GET']
+]);
+const CENTRAL_HEADERS=['authorization','content-type','x-trustsoft-client','x-trustsoft-action'];
 const now=()=>Date.now()/1000;
 const object=v=>v!==null&&typeof v==='object'&&!Array.isArray(v);
 const random=()=>[...crypto.getRandomValues(new Uint8Array(16))].map(v=>v.toString(16).padStart(2,'0')).join('');
@@ -14,6 +21,28 @@ function json(status,data,cookie){
  const headers=new Headers({...commonHeaders,'Content-Type':'application/json; charset=utf-8'});
  if(cookie)headers.set('Set-Cookie',cookie);
  return new Response(JSON.stringify(data),{status,headers});
+}
+function centralRequest(request){
+ return request.headers.get('Origin')===CENTRAL_ORIGIN&&request.headers.get('X-TrustSoft-Client')===CENTRAL_CLIENT;
+}
+function centralPreflight(request){
+ const path=new URL(request.url).pathname,method=request.headers.get('Access-Control-Request-Method');
+ const headers=(request.headers.get('Access-Control-Request-Headers')||'').toLowerCase().split(',').map(h=>h.trim()).filter(Boolean);
+ if(request.headers.get('Origin')!==CENTRAL_ORIGIN||CENTRAL_ROUTES.get(path)!==method||
+  !headers.includes('x-trustsoft-client')||headers.some(h=>!CENTRAL_HEADERS.includes(h)))throw new Failure(403,'cross_site_request');
+ return new Response(null,{status:204,headers:{...commonHeaders,
+  'Access-Control-Allow-Origin':CENTRAL_ORIGIN,'Access-Control-Allow-Methods':method,
+  'Access-Control-Allow-Headers':CENTRAL_HEADERS.join(', '),'Access-Control-Max-Age':'600',
+  'Vary':'Origin, Access-Control-Request-Method, Access-Control-Request-Headers'}});
+}
+function centralResponse(request,response){
+ const path=new URL(request.url).pathname;
+ if(request.method==='OPTIONS'||request.headers.get('Origin')!==CENTRAL_ORIGIN||CENTRAL_ROUTES.get(path)!==request.method)return response;
+ const headers=new Headers(response.headers);
+ headers.set('Access-Control-Allow-Origin',CENTRAL_ORIGIN);headers.set('Vary','Origin');
+ // Browser sessions use explicit bearer headers, never cross-site cookies.
+ headers.delete('Access-Control-Allow-Credentials');
+ return new Response(response.body,{status:response.status,statusText:response.statusText,headers});
 }
 class Failure extends Error{constructor(status,code){super(code);this.status=status;}}
 async function digest(value){return new Uint8Array(await crypto.subtle.digest('SHA-256',encoder.encode(value)));}
@@ -38,8 +67,30 @@ async function issueCookie(role,env){
  const signature=await crypto.subtle.sign('HMAC',await signing(env),encoder.encode(body));
  return (role==='admin'?'ts_admin=':'ts=')+body+'.'+b64(new Uint8Array(signature))+'; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=3600';
 }
+async function issueCentralSession(role,env){
+ const body=b64(encoder.encode(JSON.stringify({role,exp:now()+CENTRAL_TTL,nonce:random(),aud:CENTRAL_ORIGIN,ver:await version(role,env)})));
+ const signature=await crypto.subtle.sign('HMAC',await signing(env),encoder.encode(CENTRAL_SESSION_PREFIX+body));
+ return body+'.'+b64(new Uint8Array(signature));
+}
+async function centralAuthorized(request,env,admin){
+ if(!centralRequest(request))return false;
+ const value=request.headers.get('Authorization')||'';
+ if(!value.startsWith('Bearer ')||value.length>2055)return false;
+ try{
+  const [body,signature,...extra]=value.slice(7).split('.');
+  if(!body||!signature||extra.length)return false;
+  if(!await crypto.subtle.verify('HMAC',await signing(env),un64(signature),encoder.encode(CENTRAL_SESSION_PREFIX+body)))return false;
+  const data=JSON.parse(new TextDecoder().decode(un64(body)));
+  return object(data)&&typeof data.exp==='number'&&data.exp>now()&&data.exp<=now()+CENTRAL_TTL&&
+   data.aud===CENTRAL_ORIGIN&&['reader','admin'].includes(data.role)&&(!admin||data.role==='admin')&&
+   typeof data.ver==='string'&&await equal(data.ver,await version(data.role,env));
+ }catch{return false;}
+}
 async function authorized(request,env,admin=false){
  if(!configured(env))return false;
+ if(request.headers.has('Authorization')||request.headers.has('X-TrustSoft-Client')||request.headers.get('Origin')===CENTRAL_ORIGIN){
+  return centralAuthorized(request,env,admin);
+ }
  for(const part of (request.headers.get('Cookie')||'').split(';')){
   const item=part.trim();if(!item.startsWith('ts=')&&!item.startsWith('ts_admin='))continue;
   try{
@@ -53,6 +104,8 @@ async function authorized(request,env,admin=false){
  return false;
 }
 function sameOrigin(request){
+ if(centralRequest(request))return;
+ if(request.headers.has('X-TrustSoft-Client'))throw new Failure(403,'cross_site_request');
  const site=request.headers.get('Sec-Fetch-Site');
  if(site&&!['same-origin','none'].includes(site))throw new Failure(403,'cross_site_request');
  const origin=request.headers.get('Origin');
@@ -241,10 +294,10 @@ async function login(request,env,db,admin){
  ]);
  if(!attempt[1].meta.changes)throw new Failure(429,'try_later');
  if(!await equal(data.token,admin?env.TRUSTSOFT_ADMIN_TOKEN:env.TRUSTSOFT_API_TOKEN))throw new Failure(401,'unauthorized');
+ if(centralRequest(request))return json(200,{ok:true,session:await issueCentralSession(admin?'admin':'reader',env),expires_in:CENTRAL_TTL});
  return json(200,{ok:true},await issueCookie(admin?'admin':'reader',env));
 }
-export default {
- async fetch(request,env){
+async function handle(request,env){
   const url=new URL(request.url);
   if(url.protocol!=='https:'&&!['127.0.0.1','localhost','[::1]'].includes(url.hostname)){
    url.protocol='https:';
@@ -252,6 +305,7 @@ export default {
   }
   const path=url.pathname;
   try{
+   if(request.method==='OPTIONS')return centralPreflight(request);
    if(path==='/control/')return new Response(null,{status:308,headers:{...commonHeaders,Location:'/control'}});
    if(path==='/healthz')return json(200,{process:'running',storage:'d1'});
    if(!path.startsWith('/api/')){
@@ -298,5 +352,7 @@ export default {
    // Do not expose tokens, SQL errors, D1 messages or customer data.
    return json(503,{error:'control_storage_or_runtime_unavailable'});
   }
- }
+}
+export default {
+ async fetch(request,env){return centralResponse(request,await handle(request,env));}
 };

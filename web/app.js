@@ -2,14 +2,35 @@
 const labels={overview:'نظرة عامة',control:'المراقبة والسيطرة',sales:'المبيعات',purchases:'المشتريات',accounting:'المحاسبة',checks:'الشيكات',inventory:'المخزون',users:'المستخدمون',operations:'التقارير التشغيلية',financial:'التقارير المالية',investigation:'التحقيق المالي',schema:'المخطط والعلاقات'};
 const errors={agent_sql_not_verified:'لم يثبت اتصال SQL بواسطة وكيل الخادم',sql_not_configured:'اتصال SQL غير مهيأ',sql_driver_missing:'برنامج تشغيل SQL غير مثبت',sql_connection_or_query_failed:'تعذر الاتصال أو تنفيذ الاستعلام',read_only_principal_required:'الحساب يملك صلاحيات تتجاوز القراءة؛ أُوقفت القراءة',tls_configuration_required:'يلزم اتصال مشفر بشهادة موثوقة',wrong_server:'الخادم لا يطابق JAWAFFASVR',dashboard_unreachable:'تعذر الاتصال بخدمة اللوحة',wrong_database:'قاعدة البيانات لا تطابق Jawafa_DB',invalid_mapping:'ربط الأعمدة غير صالح'};
 const $=id=>document.getElementById(id);
+// GitHub Pages hosts the central UI; its short-lived API session stays in memory.
+const portalApi=document.body?.dataset.apiOrigin;
+const portalClient=portalApi==='https://trustsoft-control.zxzx-mohammad91.workers.dev'&&globalThis.location?.origin==='https://amer-ai-store.github.io';
+const invalidPortal=Boolean(portalApi)&&!portalClient;
+let portalSession='',portalGeneration=0;
+async function acceptPortalLogin(response){
+ if(!portalClient)return;
+ const data=await response.json();
+ if(typeof data.session!=='string'||data.session.length>4096||data.session.length<32)throw Error('portal_session_missing');
+ portalSession=data.session;
+}
 
 // Do not depend on AbortSignal.timeout: older Android/WebView versions omit it.
 async function apiRequest(path,options={},timeout=15000){
+ if(invalidPortal)throw Error('unapproved_portal_origin');
+ const generation=portalGeneration;
  const controller=typeof AbortController==='function'?new AbortController():null;
  const deadline=controller?setTimeout(()=>controller.abort(),timeout):null;
  try{
-  const response=await fetch(path,controller?{...options,signal:controller.signal}:options);
+  let target=path,request=options;
+  if(portalClient){
+   if(!/^\/api\/(login|admin\/login|snapshot|health|control\/(state|jobs))$/.test(path))throw Error('unapproved_portal_route');
+   target=portalApi+path;
+   request={...options,credentials:'omit',cache:'no-store',referrerPolicy:'no-referrer',headers:{...options.headers,'X-TrustSoft-Client':'central',...(portalSession?{Authorization:'Bearer '+portalSession}:{})}};
+  }
+  const response=await fetch(target,controller?{...request,signal:controller.signal}:request);
+  if(portalClient&&response.status===401)portalSession='';
   const payload=await response.json();
+  if(portalClient&&generation!==portalGeneration)throw Error('portal_session_closed');
   return {status:response.status,ok:response.ok,json:async()=>payload};
  }finally{if(deadline!==null)clearTimeout(deadline);}
 }
@@ -21,7 +42,8 @@ if(localFile){
 }
 
 const dedicatedControl=document.body?.dataset.startSection==='control';
-let selected=dedicatedControl?'control':'overview',snapshot=null,busy=false,timer;
+const adminEntry=dedicatedControl||(portalClient&&document.body?.dataset.portalAdmin==='true');
+let selected=dedicatedControl||document.body?.dataset.defaultSection==='control'?'control':'overview',snapshot=null,busy=false,timer;
 function el(tag,text){const n=document.createElement(tag);n.textContent=text;return n;}
 for(const [key,label] of Object.entries(labels)){if(dedicatedControl&&key!=='control')continue;const b=el('button',label);b.onclick=()=>{selected=key;render();};b.dataset.section=key;$('nav').append(b);}
 function table(rows){if(!rows?.length)return el('div','لا توجد نتائج مثبتة لهذا العرض.');const wrap=document.createElement('div'),t=document.createElement('table'),head=document.createElement('thead'),body=document.createElement('tbody'),keys=[...new Set(rows.flatMap(Object.keys))],tr=document.createElement('tr');keys.forEach(k=>tr.append(el('th',k)));head.append(tr);rows.forEach(row=>{const r=document.createElement('tr');keys.forEach(k=>r.append(el('td',typeof row[k]==='object'?JSON.stringify(row[k]):String(row[k]??'—'))));body.append(r);});t.append(head,body);wrap.className='table-scroll';wrap.append(t);return wrap;}
@@ -68,13 +90,15 @@ $('login').onsubmit=async e=>{
  e.preventDefault();if(localFile)return;
  $('login-submit').disabled=true;
  try{
-  const r=await apiRequest(dedicatedControl?'/api/admin/login':'/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:$('token').value})});
+  if(portalClient)portalSession='';
+  const r=await apiRequest(adminEntry?'/api/admin/login':'/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:$('token').value})});
   $('token').value='';
   if(!r.ok){
    const failure=await r.json();
    $('login-error').textContent=failure.error==='admin_not_configured'?'خدمة إدارة الموقع لم تُهيأ بعد؛ يلزم إعداد مضيف الويب.':'لم يُقبل مفتاح الدخول. تحقق من المفتاح الخاص بهذا الموقع.';
    return;
   }
+  await acceptPortalLogin(r);
   $('login-error').textContent='';
   if(!await refresh())$('login-error').textContent='لم تثبت جلسة الدخول. استخدم رابط HTTPS للموقع واسمح بملفات ارتباطه، ثم أعد المحاولة.';
  }catch{
@@ -147,11 +171,23 @@ $('admin-login').onsubmit=async e=>{
  e.preventDefault();if(localFile)return;
  try{
   const r=await apiRequest('/api/admin/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:$('admin-token').value})});
-  $('admin-token').value='';if(!r.ok)throw Error();await refreshControl();
+  $('admin-token').value='';if(!r.ok)throw Error();await acceptPortalLogin(r);await refreshControl();
  }catch{$('control-message').textContent='تعذر دخول الإدارة؛ تحقق من المفتاح وإعداد الخدمة.';}
 };
 
 globalThis.addEventListener?.('online',()=>{if(!localFile)refresh();});
+function clearPortalState(){
+ portalGeneration++;portalSession='';snapshot=null;controlState=null;controlAvailable=false;controlButtons(false);clearTimeout(timer);
+ $('auto').checked=false;$('workspace').hidden=true;$('login').hidden=false;$('token').value='';$('admin-token').value='';
+ for(const id of ['content','events','cards','control-jobs','control-backups','control-audit','export-monitor'])$(id).replaceChildren();
+ $('status').textContent='انتهت جلسة TrustSoft';$('status').dataset.ok='false';
+}
+globalThis.addEventListener?.('pagehide',()=>{if(portalClient)clearPortalState();});
+const portalExit=document.getElementById('portal-exit');
+if(portalExit){
+ portalExit.hidden=!portalClient;
+ portalExit.onclick=clearPortalState;
+}
 document.addEventListener?.('visibilitychange',()=>{
  if(document.visibilityState==='visible'&&$('auto').checked&&!localFile)refresh();
 });
